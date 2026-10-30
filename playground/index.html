@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TYCS Charting Engine - Local Testbed</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="dashboard-header">
+    <h1>TYCS Charting Library Sandbox</h1>
+    <button class="btn btn-secondary" id="theme-toggle">Toggle Dark Mode</button>
+  </div>
+
+  <div class="grid-layout">
+    <!-- STATIC BAR CHART CARD -->
+    <div class="chart-card">
+      <h2>Static Bar Component</h2>
+      <p>Features: Cartesian grids, isolated HTML hover tooltips, clean typography mapping</p>
+      <div id="bar-chart-container" class="chart-container"></div>
+    </div>
+
+    <!-- TRIGONOMETRIC PIE CHART CARD -->
+    <div class="chart-card">
+      <h2>Trigonometric Pie Component</h2>
+      <p>Features: Polar accumulative rad allocations, vector midpoint alignments</p>
+      <div id="pie-chart-container" class="chart-container"></div>
+    </div>
+
+    <!-- PURE VECTOR HOLLOW DONUT CHART CARD -->
+    <div class="chart-card">
+      <h2>Pure Path-Winding Donut Component</h2>
+      <p>Features: Dual concentric arc subtraction winding, hollow canvas masking zones, center KPI indicators</p>
+      <div id="donut-chart-container" class="chart-container"></div>
+    </div>
+
+    <!-- HIGH-PERFORMANCE DOWNSAMPLED LINE CHART CARD -->
+    <div class="chart-card">
+      <h2>Optimized High-Density Line Component</h2>
+      <p>Features: Real-time Min-Max bucket bucket resolution downsampling (800 raw points reduced to 200 paths)</p>
+      <div id="line-chart-container" class="chart-container"></div>
+    </div>
+
+    <!-- REAL-TIME TIMELINE BAR RACE CHART CARD -->
+    <div class="chart-card">
+      <h2>Dynamic Temporal Bar Race</h2>
+      <p>Features: Stateful elapsed-time clock loops, continuous float ranking overtakes</p>
+      <div id="race-chart-container" class="chart-container"></div>
+      <div class="chart-controls">
+        <button class="btn" id="race-start">Play Race</button>
+        <button class="btn btn-secondary" id="race-pause">Pause</button>
+        <button class="btn btn-secondary" id="race-reset">Reset</button>
+      </div>
+    </div>
+  </div>
+
+    <script type="module">
+      import { ChartFactory } from "../src/factory/ChartFactory.ts";
+      import { BarChart } from "../src/engines/bar/BarChart.ts";
+      import { RaceChart } from "../src/engines/race/RaceChart.ts";
+
+      // 1. DUMMY METRICS GENERATION
+      const standardCategoricMockData = [
+        { label: "Chrome", value: 650 },
+        { label: "Safari", value: 180 },
+        { label: "Firefox", value: 90 },
+        { label: "Edge", value: 50 },
+        { label: "Opera", value: 30 },
+        { label: "Others", value: 210 }
+      ];
+
+      // 2. GENERATING 800 RANDOMIZED DENSE PERFORMANCE POINTS FOR THE LINE ENGINE
+      const generateDenseMockPoints = (volume) => {
+        const pointArray = [];
+        let baselineValue = 300;
+        for (let i = 1; i <= volume; i++) {
+          // Formulates a realistic tracking wave trend using random walks
+          baselineValue += (Math.random() - 0.5) * 45 + Math.sin(i * 0.05) * 10;
+          baselineValue = Math.max(50, Math.min(baselineValue, 900)); // Constrain limits
+          pointArray.push({
+            label: `T-${volume - i}`,
+            value: baselineValue,
+          });
+        }
+        return pointArray;
+      };
+      const denseDataset = generateDenseMockPoints(800);
+
+      // 3. CHRONOLOGICAL DATA FRAMES FOR THE TIMELINE MANAGER
+      const chronologicalRaceFrames = [
+        {
+          period: "2010",
+          data: [
+            { label: "Java", value: 950 },
+            { label: "JavaScript", value: 450 },
+            { label: "Python", value: 200 },
+          ],
+        },
+        {
+          period: "2018",
+          data: [
+            { label: "Java", value: 800 },
+            { label: "JavaScript", value: 1200 },
+            { label: "Python", value: 750 },
+          ],
+        },
+        {
+          period: "2026",
+          data: [
+            { label: "Python", value: 1700 },
+            { label: "JavaScript", value: 1400 },
+            { label: "Java", value: 500 },
+          ],
+        },
+      ];
+
+      // 4. WAIT FOR VIEWPORT RENDERING WRAPPERS TO INITIALIZE
+      window.addEventListener("DOMContentLoaded", () => {
+        // Create Cartesian Bar Chart
+        // const barInstance = ChartFactory.create("bar", "bar-chart-container", standardCategoricMockData, {
+        //   height: 350,
+        //   theme: "light",
+        // });
+        const barInstance = new BarChart("bar-chart-container", standardCategoricMockData, {
+          height: 350,
+          theme: "light",
+        });
+
+        // Create Trigonometric Pie Chart
+        const pieInstance = ChartFactory.create("pie", "pie-chart-container", standardCategoricMockData, {
+          height: 350,
+          theme: "light",
+        });
+
+        // Create Pure Path-Winding Hollow Donut Chart
+        const donutInstance = ChartFactory.create("donut", "donut-chart-container", standardCategoricMockData, {
+          height: 350,
+          theme: "light",
+        });
+
+        // Create High-Performance Resolution Resolution Line Chart (Forcing a max cap threshold of 200 paths)
+        const lineInstance = ChartFactory.create("line", "line-chart-container", denseDataset, {
+          height: 350,
+          theme: "light",
+          maxRenderPoints: 200,
+        });
+
+        // Create Stateful Bar Race Chart via direct engine instantiation bounds
+        const raceInstance = new RaceChart("race-chart-container", chronologicalRaceFrames, {
+          height: 350,
+          theme: "light",
+          animationDuration: 1800,
+        });
+
+        // 5. ATTACH TEMPORAL PLAYBACK INTERACTION HANDLERS
+        document.getElementById("race-start").addEventListener("click", () => raceInstance.startRace());
+        document.getElementById("race-pause").addEventListener("click", () => raceInstance.pauseRace());
+        document.getElementById("race-reset").addEventListener("click", () => raceInstance.resetRace());
+
+        // 6. UNIFIED DYNAMIC RUNTIME THEME OVERRIDE SYSTEM MANAGERS
+        let isDarkLayout = false;
+        const themeToggleBtn = document.getElementById("theme-toggle");
+
+        themeToggleBtn.addEventListener("click", () => {
+          isDarkLayout = !isDarkLayout;
+          document.body.classList.toggle("dark-mode", isDarkLayout);
+
+          const activeThemeTokenString = isDarkLayout ? "dark" : "light";
+
+          // Broadcast configuration adjustments to all active engines reactively
+          barInstance.setTheme(activeThemeTokenString);
+          pieInstance.setTheme(activeThemeTokenString);
+          donutInstance.setTheme(activeThemeTokenString);
+          lineInstance.setTheme(activeThemeTokenString);
+          raceInstance.setTheme(activeThemeTokenString);
+        });
+      });
+    </script>
+  </body>
+</html>

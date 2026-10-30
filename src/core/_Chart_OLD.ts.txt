@@ -1,0 +1,152 @@
+import { IChartOptions, IDataPoint, Margin } from '../types/data';
+import { IChartTheme, LIGHT_THEME, DARK_THEME } from '../types/theme';
+
+export abstract class Chart {
+  protected container: HTMLElement;
+  protected canvas: HTMLCanvasElement;
+  protected ctx: CanvasRenderingContext2D;
+  protected data: IDataPoint[];
+  protected options: Required<IChartOptions>;
+  protected theme: IChartTheme;
+  
+  // Computed pixel dimensions for the inner drawing viewport boundaries
+  protected chartWidth: number = 0;
+  protected chartHeight: number = 0;
+  protected margin: Margin;
+  private resizeObserver: ResizeObserver | null = null;
+
+  constructor(containerId: string, data: IDataPoint[], options: IChartOptions = {}) {
+    const el = document.getElementById(containerId);
+    if (!el) {
+      throw new Error(`Chart Engine Error: Element with id "${containerId}" was not found.`);
+    }
+    
+    this.container = el;
+    this.data = data;
+    
+    // Fallback configurations for missing configurations
+    this.options = {
+      width: options.width ?? 'auto',
+      height: options.height ?? 400,
+      margin: options.margin ?? {},
+      theme: options.theme ?? 'light',
+      animate: options.animate ?? true,
+      animationDuration: options.animationDuration ?? 800,
+      maxRenderPoints: options.maxRenderPoints ?? 200,
+    };
+
+    // Initialize layout margins cleanly
+    this.margin = {
+      top: this.options.margin.top ?? 40,
+      right: this.options.margin.right ?? 40,
+      bottom: this.options.margin.bottom ?? 40,
+      left: this.options.margin.left ?? 50,
+    };
+
+    // Resolve structural color maps instantly
+    this.theme = this.options.theme === 'dark' ? DARK_THEME : LIGHT_THEME;
+
+    // Create and inject the primary Canvas surface node wrapper
+    this.canvas = document.createElement('canvas');
+    this.container.appendChild(this.canvas);
+    
+    const context = this.canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Chart Engine Error: Failed to acquire 2D graphics context from canvas.');
+    }
+    this.ctx = context;
+
+    this.init();
+  }
+
+  /**
+   * Triggers initial layout parameters, scaling runs, and window size listeners.
+   */
+  private init(): void {
+    this.resizeCanvas();
+    this.setupResizeObserver();
+  }
+
+  /**
+   * Computes precise dimensions and normalizes coordinate pixels to avoid blur on high-DPI Retina screens.
+   */
+  protected resizeCanvas(): void {
+    const rect = this.container.getBoundingClientRect();
+    const computedWidth = this.options.width === 'auto' ? rect.width : this.options.width;
+    const computedHeight = this.options.height;
+
+    // Read device pixel density scaling factors (e.g., Retina screens use 2x or 3x parameters)
+    const dpr = window.devicePixelRatio || 1;
+
+    // Configure internal grid drawing resolution buffer sizes
+    this.canvas.width = computedWidth * dpr;
+    this.canvas.height = computedHeight * dpr;
+
+    // Configure structural CSS layout element box rules inside the DOM tree
+    this.canvas.style.width = `${computedWidth}px`;
+    this.canvas.style.height = `${computedHeight}px`;
+
+    // Reset grid mapping scales to match device resolutions seamlessly
+    this.ctx.scale(dpr, dpr);
+
+    // Calculate dimensions reserved specifically for inner charts (axes limits/bar grids)
+    this.chartWidth = computedWidth - this.margin.left - this.margin.right;
+    this.chartHeight = computedHeight - this.margin.top - this.margin.bottom;
+
+    // Trigger full canvas repaint loops immediately
+    this.render();
+  }
+
+  /**
+   * Listens to element scale shifts continuously using performance-optimized ResizeObservers.
+   */
+  private setupResizeObserver(): void {
+    if (this.options.width === 'auto') {
+      this.resizeObserver = new ResizeObserver(() => {
+        // Prevent layout calculation loop rendering loops using animation frames
+        requestAnimationFrame(() => this.resizeCanvas());
+      });
+      this.resizeObserver.observe(this.container);
+    }
+  }
+
+  /**
+   * Wipes the drawing surface clean using active background color tokens.
+   */
+  protected clear(): void {
+    this.ctx.fillStyle = this.theme.background;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  /**
+   * Public interface method to update configuration datasets reactively at runtime.
+   */
+  public updateData(newData: IDataPoint[]): void {
+    this.data = newData;
+    this.render();
+  }
+
+  /**
+   * Public configuration interface method to toggle dynamic theme styles reactively.
+   */
+  public setTheme(newTheme: 'light' | 'dark'): void {
+    this.options.theme = newTheme;
+    this.theme = newTheme === 'dark' ? DARK_THEME : LIGHT_THEME;
+    this.render();
+  }
+
+  /**
+   * Cleans up running listeners and structural element nodes before garbage collection drops.
+   */
+  public destroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+    this.canvas.remove();
+  }
+
+  /**
+   * The core layout execution blueprint. Custom subclasses override this contract explicitly.
+   */
+  public abstract render(): void;
+}

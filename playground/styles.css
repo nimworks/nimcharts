@@ -1,0 +1,74 @@
+:root {
+  --bg-color: #f3f4f6;
+  --card-bg: #ffffff;
+  --text-color: #1f2937;
+}
+body.dark-mode {
+  --bg-color: #111827;
+  --card-bg: #1f2937;
+  --text-color: #f9fafb;
+}
+body {
+  margin: 0;
+  padding: 24px;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition:
+    background-color 0.3s,
+    color 0.3s;
+}
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.btn {
+  padding: 8px 16px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background-color: #2563eb;
+  color: white;
+  transition: background-color 0.2s;
+}
+.btn:hover {
+  background-color: #1d4ed8;
+}
+.btn-secondary {
+  background-color: #4b5563;
+}
+.btn-secondary:hover {
+  background-color: #374151;
+}
+
+.grid-layout {
+  display: grid;
+  /* grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); */
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 24px;
+}
+
+.chart-card {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  min-width: 0; /* Prevents canvas container box expansion overflows */
+}
+
+.chart-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.chart-container {
+  width: 100%;
+  min-height: 350px;
+  margin-top: 16px;
+}

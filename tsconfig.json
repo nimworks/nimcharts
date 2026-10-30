@@ -1,0 +1,58 @@
+{
+  "compilerOptions": {
+    /* Target Environments */
+    "target": "ES2022" /* Compiles down to modern, high-performance JS syntax */,
+    "module": "ESNext" /* Leverages native ECMAScript modules (import/export) */,
+    "moduleResolution": "bundler" /* Informs compiler to defer module checks to Vite */,
+
+    /* Explicit Source Mapping Framework Layouts */
+    "rootDir": "./src" /* Maps the exact root of your inputs */,
+    "outDir": "./dist" /* Directs your code package declarations safely here. Routes compiled declaration artifacts directly to /dist */,
+
+    /* PATH ALIAS DEFINITIONS MAP CONFIGURATIONS */
+    "paths": {
+      "@core/*": ["./src/core/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@components/*": ["./src/components/*"],
+      "@engines/*": ["./src/engines/*"],
+      "@_types/*": ["./src/types/*"]
+    },
+
+    /* Type Checking Rigour (SOLID Foundation) */
+    "strict": true /* Activates all strict verification rules */,
+    "noImplicitAny": true /* Throws error if expressions fallback to implicit 'any' */,
+    "strictNullChecks": true /* Ensures 'null' and 'undefined' are handled defensively */,
+    "strictFunctionTypes": true /* Ensures parameters adhere strictly to inheritance signatures */,
+    "noImplicitThis": true /* Prevents execution contextual scope leakage bugs */,
+    "alwaysStrict": true /* Emits JavaScript files running inside strict runtime mode */,
+
+    /* Advanced Linter Rules */
+    "noUnusedLocals": true /* Reports errors on completely unused local variables */,
+    "noUnusedParameters": true /* Flag variables declared in functions but never invoked */,
+    "noImplicitReturns": true /* Guarantees code paths return explicitly declared signatures */,
+    "noFallthroughCasesInSwitch": true /* Protects switch logic execution flows from leakage breaks */,
+
+    /* Compilation Pipeline Output Settings */
+		"noEmit": true, /* Completely stops tsc from writing files. Since Vite handles transpiling TS files */
+    "declaration": false /* Generates matching autocomplete .d.ts definition files. Set to false since we have Vite unplugin-dts plugin handle the writing of .d.ts files */,
+    "emitDeclarationOnly": false /* Since we let Vite unplugin-dts plugin handle the writing of .d.ts files */,
+    /*"outDir": "./dist" /* Routes compiled declaration artifacts directly to /dist */
+    "sourceMap": true /* Enables clean cross-reference tracking vectors for debuggers */,
+
+    /* Interop & Security System Constraints */
+    "esModuleInterop": true /* Allows seamless imports from legacy CommonJS library models */,
+    "skipLibCheck": true /* Boosts build speeds by skipping validation check files on node_modules */,
+    "forceConsistentCasingInFileNames": true, /* Prevents cross-OS build crashes due to character casing discrepancies */
+
+    "types": ["node"]
+  },
+  "include": ["src/**/*" /* Tells compiler to evaluate everything inside the source root */],
+  "exclude": [
+    "node_modules", /* Ignores dependencies download caches completely */
+    "dist", /* Excludes older build artifacts from recursive evaluation */
+    "playground", /* Skips compiling dev sandbox prototypes into the production bundle */
+    /* IGNORE ALL FILES AND SUBDIRECTORIES STARTING WITH AN UNDERSCORE */
+    "src/**/_*",       /* Excludes files like src/core/_draft.ts */
+    "src/**/_*/**/*"   /* Excludes entire folders like src/engines/_experimental/ */
+  ]
+}

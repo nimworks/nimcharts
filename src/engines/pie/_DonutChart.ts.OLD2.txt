@@ -1,0 +1,142 @@
+import { Chart } from '@core/Chart';
+import { Tooltip } from '@components/Tooltip';
+import type { IDataPoint, IChartOptions } from '@_types/data';
+import { blendHexColors } from '@utils/color'; // Import color utility
+import { computePieSlices, polarToCartesian, type IPieSliceData } from './PieMath';
+
+export class DonutChart extends Chart<IDataPoint> {
+  private tooltipComponent: Tooltip;
+  private sliceInteractiveZones: { slice: IPieSliceData; color: string }[] = [];
+  private innerRadiusRatio = 0.6;
+  private activeHoverIndex = -1; // Track index of the currently hovered ring slice
+
+  constructor(containerId: string, data: IDataPoint[], options: IChartOptions = {}) {
+    super(containerId, data, options);
+    this.tooltipComponent = new Tooltip(this.container);
+    this.setupInteractions();
+    // this.handleResize(); //instead of executing this in Chart.ts, we do it here since we may have to initialize other components like Tooltip, Grid or Axis before calling render()
+  }
+
+  private setupInteractions(): void {
+    this.canvasManager.element.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!Array.isArray(this.data) || this.data.length === 0) return;
+
+      const mouse = this.canvasManager.getMouseCoordinates(e);
+      const centerX = this.margin.left + this.chartWidth / 2;
+      const centerY = this.margin.top + this.chartHeight / 2;
+      const outerRadius = (Math.min(this.chartWidth, this.chartHeight) / 2) * 0.85;
+      const innerRadius = outerRadius * this.innerRadiusRatio;
+
+      const dx = mouse.x - centerX;
+      const dy = mouse.y - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      let hitIndex = -1;
+
+      // Verify cursor coordinates land exactly inside the hollow donut width ring
+      if (distance <= outerRadius && distance >= innerRadius) {
+        let hoverAngle = Math.atan2(dy, dx);
+        if (hoverAngle < -Math.PI / 2) {
+          hoverAngle += 2 * Math.PI;
+        }
+
+        this.sliceInteractiveZones.forEach((zone, index) => {
+          if (hoverAngle >= zone.slice.startAngle && hoverAngle <= zone.slice.endAngle) {
+            hitIndex = index;
+          }
+        });
+      }
+
+      if (hitIndex !== this.activeHoverIndex) {
+        this.activeHoverIndex = hitIndex;
+        this.render();
+      }
+
+      if (hitIndex !== -1) {
+        const hit = this.sliceInteractiveZones[hitIndex];
+        this.tooltipComponent.show(
+          { x: mouse.x, y: mouse.y },
+          {
+            title: hit.slice.label,
+            value: hit.slice.value,
+            color: hit.color
+          },
+          this.theme
+        );
+        this.canvasManager.element.style.cursor = 'pointer';
+      } else {
+        this.tooltipComponent.hide();
+        this.canvasManager.element.style.cursor = 'default';
+      }
+    });
+
+    this.canvasManager.element.addEventListener('mouseleave', () => {
+      this.tooltipComponent.hide();
+      this.canvasManager.element.style.cursor = 'default';
+      if (this.activeHoverIndex !== -1) {
+        this.activeHoverIndex = -1;
+        this.render();
+      }
+    });
+  }
+
+  public render(): void {
+    this.clear();
+    this.sliceInteractiveZones = [];
+
+    if (!Array.isArray(this.data) || this.data.length === 0) return;
+
+    const centerX = this.margin.left + this.chartWidth / 2;
+    const centerY = this.margin.top + this.chartHeight / 2;
+    const outerRadius = (Math.min(this.chartWidth, this.chartHeight) / 2) * 0.85;
+    const innerRadius = outerRadius * this.innerRadiusRatio;
+
+    const slices = computePieSlices(this.data);
+    const blendTargetColor = this.options.theme === 'dark' ? '#000000' : '#FFFFFF';
+
+    slices.forEach((slice, index) => {
+      const baseColor = this.theme.fallbackColors[index % this.theme.fallbackColors.length];
+
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, outerRadius, slice.startAngle, slice.endAngle, false);
+      this.ctx.arc(centerX, centerY, innerRadius, slice.endAngle, slice.startAngle, true);
+      this.ctx.closePath();
+
+      // DYNAMIC COLOR BLENDING ACTION:
+      this.ctx.fillStyle = index === this.activeHoverIndex ? blendHexColors(baseColor, blendTargetColor, 0.25) : baseColor;
+
+      this.ctx.fill();
+
+      this.ctx.strokeStyle = this.theme.background;
+      this.ctx.lineWidth = 2;
+      this.ctx.stroke();
+
+      this.sliceInteractiveZones.push({ slice, color: baseColor });
+    });
+
+    slices.forEach((slice) => {
+      if (slice.percentage > 0.05) {
+        const middleAngle = slice.startAngle + (slice.endAngle - slice.startAngle) / 2;
+        const labelRadius = innerRadius + (outerRadius - innerRadius) / 2;
+        const textPos = polarToCartesian(centerX, centerY, labelRadius, middleAngle);
+
+        this.ctx.save();
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 11px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(`${(slice.percentage * 100).toFixed(0)}%`, textPos.x, textPos.y);
+        this.ctx.restore();
+      }
+    });
+
+    const totalSum = this.data.reduce((sum, item) => sum + item.value, 0);
+    this.ctx.save();
+    this.ctx.fillStyle = this.theme.textPrimary;
+    this.ctx.font = 'bold 20px sans-serif';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText(totalSum.toLocaleString(), centerX, centerY);
+    this.ctx.restore();
+  }
+}

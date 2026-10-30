@@ -1,0 +1,109 @@
+import { Chart } from '@core/Chart';
+import { Tooltip } from '@components/Tooltip';
+import type { IDataPoint, IChartOptions } from '@_types/data';
+import { computePieSlices, polarToCartesian, type IPieSliceData } from './PieMath';
+
+export class PieChart extends Chart {
+  private tooltipComponent: Tooltip;
+  private sliceInteractiveZones: { slice: IPieSliceData; color: string }[] = [];
+
+  constructor(containerId: string, data: IDataPoint[], options: IChartOptions = {}) {
+    super(containerId, data, options);
+    this.tooltipComponent = new Tooltip(this.container);
+    this.setupInteractions();
+  }
+
+  private setupInteractions(): void {
+    this.canvasManager.element.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!Array.isArray(this.data) || this.data.length === 0) return;
+
+      // Extract absolute vector coordinates via the core manager
+      const mouse = this.canvasManager.getMouseCoordinates(e);
+
+      const centerX = this.margin.left + this.chartWidth / 2;
+      const centerY = this.margin.top + this.chartHeight / 2;
+      const radius = (Math.min(this.chartWidth, this.chartHeight) / 2) * 0.85;
+
+      const dx = mouse.x - centerX;
+      const dy = mouse.y - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > radius) {
+        this.tooltipComponent.hide();
+        this.canvasManager.element.style.cursor = 'default';
+        return;
+      }
+
+      let hoverAngle = Math.atan2(dy, dx);
+      if (hoverAngle < -Math.PI / 2) {
+        hoverAngle += 2 * Math.PI;
+      }
+
+      const hit = this.sliceInteractiveZones.find((zone) => {
+        return hoverAngle >= zone.slice.startAngle && hoverAngle <= zone.slice.endAngle;
+      });
+
+      if (hit) {
+        this.tooltipComponent.show({ x: mouse.x, y: mouse.y }, {
+          title: hit.slice.label,
+          value: hit.slice.value,
+          color: hit.color
+        }, this.theme);
+        this.canvasManager.element.style.cursor = 'pointer';
+      } else {
+        this.tooltipComponent.hide();
+        this.canvasManager.element.style.cursor = 'default';
+      }
+    });
+
+    this.canvasManager.element.addEventListener('mouseleave', () => {
+      this.tooltipComponent.hide();
+      this.canvasManager.element.style.cursor = 'default';
+    });
+  }
+
+  public render(): void {
+    this.clear();
+    this.sliceInteractiveZones = [];
+
+    if (!Array.isArray(this.data) || this.data.length === 0) return;
+
+    const centerX = this.margin.left + this.chartWidth / 2;
+    const centerY = this.margin.top + this.chartHeight / 2;
+    const radius = (Math.min(this.chartWidth, this.chartHeight) / 2) * 0.85;
+
+    const slices = computePieSlices(this.data);
+
+    slices.forEach((slice, index) => {
+      this.ctx.beginPath();
+      this.ctx.moveTo(centerX, centerY);
+      this.ctx.arc(centerX, centerY, radius, slice.startAngle, slice.endAngle);
+      this.ctx.closePath();
+
+      const sliceColor = this.theme.fallbackColors[index % this.theme.fallbackColors.length];
+      this.ctx.fillStyle = sliceColor;
+      this.ctx.fill();
+
+      this.ctx.strokeStyle = this.theme.background;
+      this.ctx.lineWidth = 2;
+      this.ctx.stroke();
+
+      this.sliceInteractiveZones.push({ slice, color: sliceColor });
+
+      if (slice.percentage > 0.05) {
+        const middleAngle = slice.startAngle + (slice.endAngle - slice.startAngle) / 2;
+        const textPos = polarToCartesian(centerX, centerY, radius * 0.65, middleAngle);
+
+        this.ctx.save();
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 11px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        const displayPercent = `${(slice.percentage * 100).toFixed(0)}%`;
+        this.ctx.fillText(displayPercent, textPos.x, textPos.y);
+        this.ctx.restore();
+      }
+    });
+  }
+}

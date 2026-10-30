@@ -1,0 +1,143 @@
+import { Chart } from '@core/Chart';
+import { Grid } from '@components/Grid';
+import { Tooltip } from '@components/Tooltip';
+import { Axis } from '@components/Axis';
+import type { IDataPoint, IChartOptions } from '@_types/data';
+import { scaleLinear } from '@utils/math';
+import { hexToRgba } from '@utils/color';
+
+interface IInteractiveZone {
+  item: IDataPoint;
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  color: string;
+}
+
+export class BarChart extends Chart<IDataPoint> {
+  private gridComponent: Grid;
+  private tooltipComponent: Tooltip;
+  private axisComponent: Axis;
+  private barInteractiveZones: IInteractiveZone[] = [];
+  private activeHoverIndex = -1; // Tracks the index of the currently hovered bar (-1 means none)
+
+  constructor(containerId: string, data: IDataPoint[], options: IChartOptions = {}) {
+    super(containerId, data, options);
+    this.gridComponent = new Grid({ tickCount: 5, dashedLine: true, lineDash: [20, 20] });
+    this.tooltipComponent = new Tooltip(this.container);
+    this.axisComponent = new Axis({ tickCount: 10 });
+    this.setupInteractions();
+
+    // this.handleResize(); //instead of executing this in Chart.ts, we do it here since we have to initialize Grid & Axis before calling render()
+    // this.init(); //may cause
+  }
+
+  /**
+   * Leverages the new canvasManager coordinate mapping abstraction layer.
+   */
+  private setupInteractions(): void {
+    this.canvasManager.element.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!Array.isArray(this.data) || this.data.length === 0) return;
+
+      const mouse = this.canvasManager.getMouseCoordinates(e);
+      let hitIndex = -1;
+
+      // Scan cached bar zones for active pointer collisions
+      const hit = this.barInteractiveZones.find((zone, index) => {
+        const isHit = mouse.x >= zone.xMin && mouse.x <= zone.xMax && mouse.y >= zone.yMin && mouse.y <= zone.yMax;
+        if (isHit) hitIndex = index;
+        return isHit;
+      });
+
+      // Active state change barrier: trigger paint cycles only on slot transitions
+      if (hitIndex !== this.activeHoverIndex) {
+        this.activeHoverIndex = hitIndex;
+        this.render(); // Redraw immediately to apply opacity highlight variables
+      }
+
+      if (hit) {
+        this.tooltipComponent.show(
+          { x: mouse.x, y: mouse.y },
+          {
+            title: hit.item.label,
+            value: hit.item.value,
+            color: hit.color
+          },
+          this.theme
+        );
+        this.canvasManager.element.style.cursor = 'pointer';
+      } else {
+        this.tooltipComponent.hide();
+        this.canvasManager.element.style.cursor = 'default';
+      }
+    });
+
+    this.canvasManager.element.addEventListener('mouseleave', () => {
+      this.tooltipComponent.hide();
+      this.canvasManager.element.style.cursor = 'default';
+      // Reset variables cleanly when cursor abandons viewport boundaries
+      if (this.activeHoverIndex !== -1) {
+        this.activeHoverIndex = -1;
+        this.render();
+      }
+    });
+  }
+
+  public render(): void {
+    //since parent class Chart.ts calls render() via handleResize() inside it's constructor, it may fire before this class instantiates Grid & Axis
+    if (!this.gridComponent || !this.axisComponent) return;
+
+    this.clear();
+    this.barInteractiveZones = [];
+
+    if (!Array.isArray(this.data) || this.data.length === 0) return;
+
+    const totalBars = this.data.length;
+    const maxValue = Math.max(...this.data.map((d) => d.value), 0);
+
+    this.gridComponent.draw(this.ctx, this.margin, this.chartWidth, this.chartHeight, maxValue, this.theme);
+    this.axisComponent.drawY(this.ctx, this.margin, this.chartHeight, maxValue, this.theme);
+
+    const gapRatio = 0.2;
+    const totalAllocatedWidth = this.chartWidth / totalBars;
+    const barGap = totalAllocatedWidth * gapRatio;
+    const barWidth = totalAllocatedWidth - barGap;
+
+    const yScale = scaleLinear([0, maxValue], [this.margin.top + this.chartHeight, this.margin.top]);
+
+    for (let i = 0; i < totalBars; i++) {
+      const item = this.data[i];
+      const x = this.margin.left + i * totalAllocatedWidth + barGap / 2;
+      const y = yScale(item.value);
+      const height = yScale(0) - y;
+      const barColor = this.theme.fallbackColors[i % this.theme.fallbackColors.length];
+
+      // this.ctx.fillStyle = barColor;
+      // this.ctx.fillRect(x, y, barWidth, height);
+
+      // DYNAMIC COLOR OVERLAY HIGHLIGHT:
+      // If the cursor is currently hovering over this item, apply an 80% opacity fill effect
+      this.ctx.fillStyle = i === this.activeHoverIndex ? hexToRgba(barColor, 0.8) : barColor;
+      this.ctx.fillRect(x, y, barWidth, height);
+
+      this.barInteractiveZones.push({
+        item,
+        xMin: x,
+        xMax: x + barWidth,
+        yMin: y,
+        yMax: this.margin.top + this.chartHeight,
+        color: barColor
+      });
+
+      this.ctx.fillStyle = this.theme.textPrimary;
+      this.ctx.font = '12px sans-serif';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(item.value.toString(), x + barWidth / 2, y - 6);
+
+      this.axisComponent.drawXLabel(this.ctx, item.label, x + barWidth / 2, this.margin.top + this.chartHeight + 8, this.theme);
+    }
+
+    this.axisComponent.drawXBaseline(this.ctx, this.margin, this.chartWidth, this.chartHeight, this.theme);
+  }
+}
